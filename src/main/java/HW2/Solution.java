@@ -14,7 +14,6 @@ import java.util.ArrayList;
 
 import static HW2.business.ReturnValue.*;
 
-
 public class Solution {
     public static void createTables() {
         InitialState.createInitialState();
@@ -27,22 +26,82 @@ public class Solution {
 
     public static void dropTables() {
         InitialState.dropInitialState();
-		//drop your tables here
+        //drop your tables here
     }
 
     public static ReturnValue addTest(Test test) {
-       return OK;
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("INSERT INTO Test VALUES (?,?,?,?,?)");
+            pstmt.setInt(1,test.getId());
+            pstmt.setInt(2, test.getSemester());
+            pstmt.setInt(3,test.getTime());
+            pstmt.setInt(4,test.getRoom());
+            pstmt.setInt(4,test.getDay());
+            pstmt.setInt(4,test.getCreditPoints());
+            pstmt.execute();
+        }catch(SQLException e){
+            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
+            if (SQLStateNumValue== PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
+                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
+                return BAD_PARAMS;
+
+            }
+            else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
+                return ALREADY_EXISTS;
+
+            }
+            else{
+                return ERROR;
+            }
+
+        }
+        finally {
+            try{
+                pstmt.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+            try{
+                con.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+
+            }
+        }
+        return OK;
     }
 
     public static Test getTestProfile(Integer testID, Integer semester) {
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ? and Semester = ?");
+            pstmt.setInt(1, testID);
+            pstmt.setInt(2, semester);
+            pstmt.execute();
+        }catch(SQLException e){
+            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
+            if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue()||
+                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
+                return Test.badTest();
+            }
+            else if
+        }
+
         return new Test();
     }
 
     public static ReturnValue deleteTest(Integer testID, Integer semester) {
-		return OK;
+        return OK;
     }
 
     public static ReturnValue addStudent(Student student) {
+
+
+
+
         return OK;
     }
 
@@ -75,11 +134,11 @@ public class Solution {
     }
 
     public static ReturnValue supervisorOverseeTest(Integer supervisorID, Integer testID, Integer semester) {
-       return OK;
+        return OK;
     }
 
     public static ReturnValue supervisorStopsOverseeTest(Integer supervisorID, Integer testID, Integer semester) {
-       return OK;
+        return OK;
     }
 
     public static Float averageTestCost() {
