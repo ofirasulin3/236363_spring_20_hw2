@@ -96,6 +96,7 @@ public class Solution {
             return Test.badTest();
         }
 
+
         try {
             id = rs.getInt(1);
             sem = rs.getInt(2);//semester column
