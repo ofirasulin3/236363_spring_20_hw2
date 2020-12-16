@@ -140,15 +140,91 @@ public class Solution {
     }
 
     public static ReturnValue addStudent(Student student) {
-
-
-
-
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("INSERT INTO Student VALUES (?,?,?,?)");
+            pstmt.setInt(1, student.getId());
+            pstmt.setString(2, student.getName());
+            pstmt.setString(3, student.getFaculty());
+            pstmt.setInt(4, student.getCreditPoints());
+            pstmt.execute();
+        }catch(SQLException e){
+            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
+            if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
+                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
+                return BAD_PARAMS;
+            }
+            else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
+                return ALREADY_EXISTS;
+            }
+            else{
+                return ERROR;
+            }
+        }
+        finally {
+            try{
+                pstmt.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+            try{
+                con.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+        }
         return OK;
     }
 
     public static Student getStudentProfile(Integer studentID) {
-        return new Student();
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        int id = 0;
+        String name = "";
+        String faculty = "";
+        int creditPoints = 0;
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt.setInt(1, studentID);
+            rs =  pstmt.executeQuery();
+        }catch(SQLException e){
+            return Student.badStudent();
+        }
+
+        if (rs == null){
+            return Student.badStudent();
+        }
+        try {
+            id = rs.getInt(1);
+            name = rs.getString(2);
+            faculty = rs.getString(3);
+            creditPoints = rs.getInt(4);
+        }catch(SQLException e){
+            return Student.badStudent();
+        }
+        finally{
+            try{
+                pstmt.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+            try{
+                con.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+        }
+
+        //check if it needs to be before finally
+        Student student = new Student();
+        student.setId(id);
+        student.setName(name);
+        student.setFaculty(faculty);
+        student.setCreditPoints(creditPoints);
+        return student;
+        //return new Student();
     }
 
     public static ReturnValue deleteStudent(Integer studentID) {
