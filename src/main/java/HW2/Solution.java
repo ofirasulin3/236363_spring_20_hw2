@@ -220,15 +220,15 @@ public class Solution {
     }
 
     public static ReturnValue deleteStudent(Integer studentID) {
-
-        //check if exists:
         Connection con = DBConnector.getConnection();
-        PreparedStatement pstmt1 = null;
+        PreparedStatement pstmt = null;
         ResultSet rs = null;
+
+        //check if student exists:
         try {
-            pstmt1 = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
-            pstmt1.setInt(1, studentID);
-            rs = pstmt1.executeQuery();
+            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt.setInt(1, studentID);
+            rs = pstmt.executeQuery();
         } catch (SQLException e) {
             return ERROR;
         }
@@ -237,17 +237,17 @@ public class Solution {
         }
 
         //Delete from Attend:
-        PreparedStatement pstmt2 = null;
+        //PreparedStatement pstmt = null;
         try {
-            pstmt2 = con.prepareStatement("DELETE FROM Attend WHERE studentID = ?");
-            pstmt2.setInt(1, studentID);
-            pstmt2.execute();
+            pstmt = con.prepareStatement("DELETE FROM Attend WHERE studentID = ?");
+            pstmt.setInt(1, studentID);
+            pstmt.execute();
         } catch (SQLException e) {
             return ERROR;
         }
 
         //Delete from Student:
-        PreparedStatement pstmt = null;
+        //PreparedStatement pstmt = null;
         try {
             pstmt = con.prepareStatement("DELETE FROM Student WHERE ID = ?");
             pstmt.setInt(1, studentID);
@@ -331,10 +331,126 @@ public class Solution {
     }
 
     public static ReturnValue studentAttendTest(Integer studentID, Integer testID, Integer semester) {
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        //check if student exists:
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt.setInt(1, studentID);
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+        //check if test exists:
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ?");
+            pstmt.setInt(1, testID);
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+
+
+        try {
+            pstmt = con.prepareStatement("INSERT INTO Attend VALUES (?,?,?)");
+            pstmt.setInt(1, studentID);
+            pstmt.setInt(2, testID);
+            pstmt.setInt(3, semester);
+            pstmt.execute();
+        } catch (SQLException e) {
+            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
+            if (SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
+                return ALREADY_EXISTS;
+            } else {
+                return ERROR;
+            }
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
         return OK;
     }
 
     public static ReturnValue studentWaiveTest(Integer studentID, Integer testID, Integer semester) {
+        //check if student exists:
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt.setInt(1, studentID);
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+        //check if test exists:
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ?");
+            pstmt.setInt(1, testID);
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+        //check if student attends test:
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Attend WHERE studentID = ? and testID = ? and Semester = ?");
+            pstmt.setInt(1, studentID);
+            pstmt.setInt(1, testID);
+            pstmt.setInt(1, semester);
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+
+        //Delete from Attend:
+        //PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("DELETE FROM Attend WHERE studentID = ? and testID = ? and Semester = ?");
+            pstmt.setInt(1, studentID);
+            pstmt.setInt(1, testID);
+            pstmt.setInt(2, semester);
+            pstmt.execute();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
         return OK;
     }
 
