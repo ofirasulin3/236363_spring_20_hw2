@@ -236,7 +236,51 @@ public class Solution {
     }
 
     public static Supervisor getSupervisorProfile(Integer supervisorID) {
-        return new Supervisor();
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        int id = 0;
+        String name = "";
+        int salary = 0;
+        int creditPoints = 0;
+        try {
+            pstmt = con.prepareStatement("SELECT * FROM Supervisor WHERE ID = ?");
+            pstmt.setInt(1, supervisorID);
+            rs =  pstmt.executeQuery();
+        }catch(SQLException e){
+            return Supervisor.badSupervisor();
+        }
+
+        if (rs == null){
+            return Supervisor.badSupervisor();
+        }
+        try {
+            id = rs.getInt(1);
+            name = rs.getString(2);
+            salary = rs.getInt(3);
+        }catch(SQLException e){
+            return Supervisor.badSupervisor();
+        }
+        finally{
+            try{
+                pstmt.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+            try{
+                con.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+        }
+
+        //check if it needs to be before finally
+        Supervisor supervisor = new Supervisor();
+        supervisor.setId(id);
+        supervisor.setName(name);
+        supervisor.setSalary(salary);
+        return supervisor;
+        //return new Supervisor();
     }
 
     public static ReturnValue deleteSupervisor(Integer supervisorID) {
