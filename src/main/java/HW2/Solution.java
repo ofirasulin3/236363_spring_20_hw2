@@ -34,38 +34,35 @@ public class Solution {
         PreparedStatement pstmt = null;
         try {
             pstmt = con.prepareStatement("INSERT INTO Test VALUES (?,?,?,?,?,?)");
-            pstmt.setInt(1,test.getId());
+            pstmt.setInt(1, test.getId());
             pstmt.setInt(2, test.getSemester());
-            pstmt.setInt(3,test.getTime());
-            pstmt.setInt(4,test.getRoom());
-            pstmt.setInt(5,test.getDay());
-            pstmt.setInt(6,test.getCreditPoints());
+            pstmt.setInt(3, test.getTime());
+            pstmt.setInt(4, test.getRoom());
+            pstmt.setInt(5, test.getDay());
+            pstmt.setInt(6, test.getCreditPoints());
             pstmt.execute();
-        }catch(SQLException e){
+        } catch (SQLException e) {
             int SQLStateNumValue = Integer.valueOf(e.getSQLState());
             if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
-                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
+                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
                 return BAD_PARAMS;
 
-            }
-            else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
+            } else if (SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ALREADY_EXISTS;
 
-            }
-            else{
+            } else {
                 return ERROR;
             }
 
-        }
-        finally {
-            try{
+        } finally {
+            try {
                 pstmt.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
-            try{
+            try {
                 con.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
 
             }
@@ -87,12 +84,12 @@ public class Solution {
             pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ? and Semester = ?");
             pstmt.setInt(1, testID);
             pstmt.setInt(2, semester);
-            rs =  pstmt.executeQuery();
-        }catch(SQLException e){
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
             return Test.badTest();
         }
 
-        if (rs == null){   //||!rs.next()) {
+        if (rs == null) {   //||!rs.next()) {
             return Test.badTest();
         }
 
@@ -104,18 +101,17 @@ public class Solution {
             room = rs.getInt(4);
             day = rs.getInt(5);
             credit_points = rs.getInt(6);
-        }catch(SQLException e){
+        } catch (SQLException e) {
             return Test.badTest();
-        }
-        finally{
-            try{
+        } finally {
+            try {
                 pstmt.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
-            try{
+            try {
                 con.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
 
             }
@@ -126,7 +122,7 @@ public class Solution {
         Test test = new Test();
         test.setId(id);
         test.setSemester(sem);
-        test.setTime((time));
+        test.setTime((time));//TODO: should it be like this? and not (time)?
         test.setRoom(room);
         test.setDay(day);
         test.setCreditPoints(credit_points);
@@ -149,28 +145,25 @@ public class Solution {
             pstmt.setString(3, student.getFaculty());
             pstmt.setInt(4, student.getCreditPoints());
             pstmt.execute();
-        }catch(SQLException e){
+        } catch (SQLException e) {
             int SQLStateNumValue = Integer.valueOf(e.getSQLState());
             if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
-                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
+                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
                 return BAD_PARAMS;
-            }
-            else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
+            } else if (SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ALREADY_EXISTS;
-            }
-            else{
+            } else {
                 return ERROR;
             }
-        }
-        finally {
-            try{
+        } finally {
+            try {
                 pstmt.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
-            try{
+            try {
                 con.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
@@ -188,12 +181,12 @@ public class Solution {
         try {
             pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
             pstmt.setInt(1, studentID);
-            rs =  pstmt.executeQuery();
-        }catch(SQLException e){
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
             return Student.badStudent();
         }
 
-        if (rs == null){
+        if (rs == null) {
             return Student.badStudent();
         }
         try {
@@ -201,18 +194,17 @@ public class Solution {
             name = rs.getString(2);
             faculty = rs.getString(3);
             creditPoints = rs.getInt(4);
-        }catch(SQLException e){
+        } catch (SQLException e) {
             return Student.badStudent();
-        }
-        finally{
-            try{
+        } finally {
+            try {
                 pstmt.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
-            try{
+            try {
                 con.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
@@ -228,6 +220,58 @@ public class Solution {
     }
 
     public static ReturnValue deleteStudent(Integer studentID) {
+
+        //check if exists:
+        Connection con = DBConnector.getConnection();
+        PreparedStatement pstmt1 = null;
+        ResultSet rs = null;
+        try {
+            pstmt1 = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt1.setInt(1, studentID);
+            rs = pstmt1.executeQuery();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+        if (rs == null) {
+            return NOT_EXISTS;
+        }
+
+        //Delete from Attend:
+        PreparedStatement pstmt2 = null;
+        try {
+            pstmt2 = con.prepareStatement("DELETE FROM Attend WHERE studentID = ?");
+            pstmt2.setInt(1, studentID);
+            pstmt2.execute();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+
+        //Delete from Student:
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("DELETE FROM Student WHERE ID = ?");
+            pstmt.setInt(1, studentID);
+            pstmt.execute();
+        } catch (SQLException e) {
+            return ERROR;
+        }
+
+        //TODO: what's the difference between excecute and executeQuery?
+
+        //TODO: is it possible to us the same pstmt again and again?
+
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
         return OK;
     }
 
@@ -246,30 +290,29 @@ public class Solution {
         try {
             pstmt = con.prepareStatement("SELECT * FROM Supervisor WHERE ID = ?");
             pstmt.setInt(1, supervisorID);
-            rs =  pstmt.executeQuery();
-        }catch(SQLException e){
+            rs = pstmt.executeQuery();
+        } catch (SQLException e) {
             return Supervisor.badSupervisor();
         }
 
-        if (rs == null){
+        if (rs == null) {
             return Supervisor.badSupervisor();
         }
         try {
             id = rs.getInt(1);
             name = rs.getString(2);
             salary = rs.getInt(3);
-        }catch(SQLException e){
+        } catch (SQLException e) {
             return Supervisor.badSupervisor();
-        }
-        finally{
-            try{
+        } finally {
+            try {
                 pstmt.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
-            try{
+            try {
                 con.close();
-            }catch(SQLException e){
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
