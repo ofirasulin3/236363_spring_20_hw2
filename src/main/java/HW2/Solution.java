@@ -43,7 +43,7 @@ public class Solution {
                     "(\n" +
                     "    student_id integer NOT NULL,\n" +
                     "    name text NOT NULL ,\n" +
-                    "    faculty integer NOT NULL ,\n" +
+                    "    faculty text NOT NULL ,\n" +
                     "    credit_points integer default (0) NOT NULL ,\n" +
                     "    PRIMARY KEY (student_id),\n" +
                     "    CHECK (student_id > 0),\n" +
@@ -369,6 +369,7 @@ public class Solution {
         ResultSet rs = null;
 
         //check if student exists:
+        //Niv wrote this: TODO: tried to execute a delete query in pg when there is nothing to delete and there wasn't error
         try {
             pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
             pstmt.setInt(1, studentID);
@@ -382,6 +383,8 @@ public class Solution {
 
         //Delete from Attend:
         //PreparedStatement pstmt = null;
+
+        //Niv wrote this: TODO: i don't think we need to upadate the Attendees table because the DB does it automaticly
         try {
             pstmt = con.prepareStatement("DELETE FROM Attend WHERE studentID = ?");
             pstmt.setInt(1, studentID);
@@ -582,7 +585,7 @@ public class Solution {
 
 
         try {
-            pstmt = con.prepareStatement("INSERT INTO Attend VALUES (?,?,?)");
+            pstmt = con.prepareStatement("INSERT INTO Attendees VALUES (?,?,?)");
             pstmt.setInt(1, studentID);
             pstmt.setInt(2, testID);
             pstmt.setInt(3, semester);
@@ -844,6 +847,45 @@ public class Solution {
     }
 
     public static ArrayList<Integer> supervisorOverseeStudent() {
+            Connection connection = DBConnector.getConnection();
+            PreparedStatement pstmt = null;
+            ArrayList<Integer> students = new ArrayList<Integer>();
+            try {
+                pstmt = connection.prepareStatement("SELECT DISTINCT student_id\n" +
+                        "FROM (SELECT student_id , COUNT(oversees_student.supervisor_id)\n" +
+                        "\tFROM (SELECT * \n" +
+                        "\t   \tFROM oversees INNER JOIN attendees ON oversees.test_id = attendees.test_id AND \n" +
+                        "\t   \toversees.semester = attendees.semester) oversees_student\n" +
+                        "\tGROUP BY student_id , supervisor_id\n" +
+                        "\tHAVING COUNT(oversees_student.supervisor_id)>=2) students_more_than_once\n" +
+                        "\n");
+                ResultSet results = pstmt.executeQuery();
+                while (results.next()){
+                    students.add(results.getInt("student_id"));
+                }
+                return students;
+
+
+
+            } catch (SQLException e) {
+                return  students;
+            }
+
+            finally {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+
 
 
         return new ArrayList<Integer>();
