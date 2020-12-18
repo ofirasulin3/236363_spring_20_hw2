@@ -377,7 +377,6 @@ public class Solution {
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
 
-        //Delete from Student:
         try {
             pstmt = con.prepareStatement("DELETE FROM Student WHERE ID = ?");
             pstmt.setInt(1, studentID);
