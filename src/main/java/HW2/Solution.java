@@ -370,7 +370,6 @@ public class Solution {
         student.setFaculty(faculty);
         student.setCreditPoints(creditPoints);
         return student;
-        //return new Student();
     }
 
     public static ReturnValue deleteStudent(Integer studentID) {
@@ -595,53 +594,18 @@ public class Solution {
     }
 
     public static ReturnValue studentWaiveTest(Integer studentID, Integer testID, Integer semester) {
-        //check if student exists:
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
-            pstmt.setInt(1, studentID);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
-        //check if test exists:
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ?");
-            pstmt.setInt(1, testID);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
-        //check if student attends test:
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Attend WHERE studentID = ? and testID = ? and Semester = ?");
-            pstmt.setInt(1, studentID);
-            pstmt.setInt(1, testID);
-            pstmt.setInt(1, semester);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
 
-        //Delete from Attend:
-        //PreparedStatement pstmt = null;
         try {
-            pstmt = con.prepareStatement("DELETE FROM Attend WHERE studentID = ? and testID = ? and Semester = ?");
+            pstmt = con.prepareStatement("DELETE FROM Attendees WHERE studentID = ? and testID = ? and Semester = ?");
             pstmt.setInt(1, studentID);
             pstmt.setInt(1, testID);
             pstmt.setInt(2, semester);
-            pstmt.execute();
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows == 0){
+                return NOT_EXISTS;
+            }
         } catch (SQLException e) {
             return ERROR;
         }
