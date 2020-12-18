@@ -80,6 +80,16 @@ public class Solution {
                     "    FOREIGN KEY (test_id,semester) REFERENCES test (test_id, semester) ON DELETE CASCADE ON UPDATE CASCADE\n" +
                     ")");
             pstmt.execute();
+            //Creating a view that shows the total_points of a student (points achived + points of future tests)
+            pstmt = connection.prepareStatement("create view student_total_points as \n" +
+                    "select student.student_id,student.credit_points + COALESCE(points_taken,0) total_points\n" +
+                    "from   (select student_id, sum(credit_points) points_taken\n" +
+                    "\t\tfrom attendees inner join test on attendees.test_id = test.test_id \n" +
+                    "\t\t\t\t\t\t\t\tand attendees.semester = test.semester\n" +
+                    "\t\tgroup by student_id)\tfuture_points right outer join student on \n" +
+                    "\t\tstudent.student_id = future_points.student_id");
+            pstmt.execute();
+
 
 
 
@@ -228,7 +238,7 @@ public class Solution {
         Test test = new Test();
         test.setId(id);
         test.setSemester(sem);
-        test.setTime((time));//TODO: should it be like this? and not (time)?
+        test.setTime(time);
         test.setRoom(room);
         test.setDay(day);
         test.setCreditPoints(credit_points);
@@ -822,8 +832,10 @@ public class Solution {
                     "\n");
             ResultSet results = pstmt.executeQuery();
             if (results.next()){
+
+                int rs = results.getInt("sum");
                 results.close();
-                return results.getInt("sum");
+                return rs;
             }
 
 
@@ -847,64 +859,179 @@ public class Solution {
     }
 
     public static ArrayList<Integer> supervisorOverseeStudent() {
-            Connection connection = DBConnector.getConnection();
-            PreparedStatement pstmt = null;
-            ArrayList<Integer> students = new ArrayList<Integer>();
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> students = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT DISTINCT student_id\n" +
+                    "FROM (SELECT student_id , COUNT(oversees_student.supervisor_id)\n" +
+                    "\tFROM (SELECT * \n" +
+                    "\t   \tFROM oversees INNER JOIN attendees ON oversees.test_id = attendees.test_id AND \n" +
+                    "\t   \toversees.semester = attendees.semester) oversees_student\n" +
+                    "\tGROUP BY student_id , supervisor_id\n" +
+                    "\tHAVING COUNT(oversees_student.supervisor_id)>=2) students_more_than_once\n" +
+                    "\n");
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                students.add(results.getInt("student_id"));
+            }
+            results.close();
+            return students;
+
+        } catch (SQLException e) {
+            return students;
+        } finally {
             try {
-                pstmt = connection.prepareStatement("SELECT DISTINCT student_id\n" +
-                        "FROM (SELECT student_id , COUNT(oversees_student.supervisor_id)\n" +
-                        "\tFROM (SELECT * \n" +
-                        "\t   \tFROM oversees INNER JOIN attendees ON oversees.test_id = attendees.test_id AND \n" +
-                        "\t   \toversees.semester = attendees.semester) oversees_student\n" +
-                        "\tGROUP BY student_id , supervisor_id\n" +
-                        "\tHAVING COUNT(oversees_student.supervisor_id)>=2) students_more_than_once\n" +
-                        "\n");
-                ResultSet results = pstmt.executeQuery();
-                while (results.next()){
-                    students.add(results.getInt("student_id"));
-                }
-                return students;
-
-
-
+                pstmt.close();
             } catch (SQLException e) {
-                return  students;
+                e.printStackTrace();
             }
-
-            finally {
-                try {
-                    pstmt.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        }
+    }
 
+
+    public static ArrayList<Integer> testsThisSemester(Integer semester) {
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> tests_id = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT test_id \n" +
+                    "  FROM test\n" +
+                    " WHERE semester = ?\n" +
+                    " LIMIT 5");
+
+            pstmt.setInt(1,semester);
+
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                tests_id.add(results.getInt("test_id"));
+            }
+            results.close();
+            return tests_id;
+
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
 
-
-        return new ArrayList<Integer>();
-    }
-
-    public static ArrayList<Integer> testsThisSemester(Integer semester) {
-        return new ArrayList<Integer>();
     }
 
     public static Boolean studentHalfWayThere(Integer studentID) {
-        return true;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> students = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("select student_id  \n" +
+                    "from student left join credit_points  on student.Faculty = credit_points.Faculty\n" +
+                    "where student_id = 3 and (1.0*credit_points/points)*100 > 50");
+            ResultSet results = pstmt.executeQuery();
+            if (results.next()) {
+                return true;
+            }
+            return false;
+
+        } catch (SQLException e) {
+            return false;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 
     public static Integer studentCreditPoints(Integer studentID) {
-        return 0;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> students = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT * FROM student_total_points\n" +
+                    "WHERE student_id = ?\n" +
+                    "\n");
+            pstmt.setInt(1,studentID);
+            ResultSet results = pstmt.executeQuery();
+            if (results.next()) {
+               int points =  results.getInt("total_points");
+               results.close();
+               return points;
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            return 0;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 
     public static Integer getMostPopularTest(String faculty) {
-        return 0;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> students = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT attendees.test_id , COUNT(test_id) num_of_students\n" +
+                    "FROM attendees \n" +
+                    "WHERE student_id IN (SELECT student_id FROM student WHERE faculty = 'cs')\n" +
+                    "GROUP BY test_id\n" +
+                    "ORDER BY COUNT(test_id) DESC\n" +
+                    "LIMIT 1");
+            pstmt.setString(1,faculty);
+            ResultSet results = pstmt.executeQuery();
+            if (results.next()) {
+               int id = results.getInt("test_id");
+               results.close();
+               return id;
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            return 0;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 
     public static ArrayList<Integer> getConflictingTests() {
