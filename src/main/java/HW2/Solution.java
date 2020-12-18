@@ -376,46 +376,19 @@ public class Solution {
     public static ReturnValue deleteStudent(Integer studentID) {
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ResultSet rs = null;
-
-        //check if student exists:
-        //Niv wrote this: TODO: tried to execute a delete query in pg when there is nothing to delete and there wasn't error
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
-            pstmt.setInt(1, studentID);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
-
-        //Delete from Attend:
-        //PreparedStatement pstmt = null;
-
-        //Niv wrote this: TODO: i don't think we need to upadate the Attendees table because the DB does it automaticly
-        try {
-            pstmt = con.prepareStatement("DELETE FROM Attend WHERE studentID = ?");
-            pstmt.setInt(1, studentID);
-            pstmt.execute();
-        } catch (SQLException e) {
-            return ERROR;
-        }
 
         //Delete from Student:
-        //PreparedStatement pstmt = null;
         try {
             pstmt = con.prepareStatement("DELETE FROM Student WHERE ID = ?");
             pstmt.setInt(1, studentID);
-            pstmt.execute();
-        } catch (SQLException e) {
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows == 0){
+                return NOT_EXISTS;
+            }
+        }
+        catch (SQLException e) {
             return ERROR;
         }
-
-        //TODO: what's the difference between excecute and executeQuery?
-
-        //TODO: is it possible to us the same pstmt again and again?
 
         finally {
             try {
