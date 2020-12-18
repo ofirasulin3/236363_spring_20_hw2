@@ -84,10 +84,15 @@ public class Solution {
             pstmt = connection.prepareStatement("create view student_total_points as \n" +
                     "select student.student_id,student.credit_points + COALESCE(points_taken,0) total_points\n" +
                     "from   (select student_id, sum(credit_points) points_taken\n" +
-                    "\t\tfrom attendees inner join test on attendees.test_id = test.test_id \n" +
-                    "\t\t\t\t\t\t\t\tand attendees.semester = test.semester\n" +
-                    "\t\tgroup by student_id)\tfuture_points right outer join student on \n" +
-                    "\t\tstudent.student_id = future_points.student_id");
+                    "from attendees inner join test on attendees.test_id = test.test_id \n" +
+                    "and attendees.semester = test.semester\n" +
+                    "group by student_id) future_points right outer join student on \n" +
+                    "student.student_id = future_points.student_id");
+            pstmt.execute();
+            //Creating a view that shows points achieved and points goal for every student
+            pstmt = connection.prepareStatement("CREATE VIEW student_faculty_points AS \n" +
+                    "SELECT student_id, student.faculty, points,credit_points\n" +
+                    "from student left join credit_points on student.faculty = credit_points.faculty");
             pstmt.execute();
 
 
@@ -113,7 +118,34 @@ public class Solution {
     }
 
     public static void clearTables() {
-        //clear your tables here
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Test");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Student");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Supervisor");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Attendees");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Oversees");
+            pstmt.execute();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void dropTables() {
@@ -121,12 +153,21 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
+            pstmt = connection.prepareStatement("DROP VIEW IF EXISTS student_total_points");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DROP VIEW IF EXISTS student_faculty_points");
+            pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Test");
             pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Student");
             pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Supervisor");
             pstmt.execute();
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Attendees");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Oversees");
+            pstmt.execute();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -134,12 +175,12 @@ public class Solution {
             try {
                 pstmt.close();
             } catch (SQLException e) {
-                //e.printStackTrace()();
+                e.printStackTrace();
             }
             try {
                 connection.close();
             } catch (SQLException e) {
-                //e.printStackTrace()();
+                e.printStackTrace();
             }
         }
         //drop your tables here
@@ -262,16 +303,7 @@ public class Solution {
                 return NOT_EXISTS;
             }
         } catch (SQLException e) {
-            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
-            if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
-                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
-                return BAD_PARAMS;
-
-            }
-
-            else{
-                return ERROR;
-            }
+            return ERROR;
 
         }
         finally {
@@ -508,16 +540,7 @@ public class Solution {
                 return NOT_EXISTS;
             }
         } catch (SQLException e) {
-            int SQLStateNumValue = Integer.valueOf(e.getSQLState());
-            if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
-                    SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
-                return BAD_PARAMS;
-
-            }
-
-            else{
                 return ERROR;
-            }
 
         }
         finally {
@@ -762,10 +785,11 @@ public class Solution {
             pstmt = connection.prepareStatement("select sum(salary)\n" +
                     "from oversees inner join (select * \n" +
                     "from supervisor \n" +
-                    "where supervisor_id = 1) S \n" +
+                    "where supervisor_id = ?) S \n" +
                     "on S.supervisor_id = oversees.supervisor_id\n" +
-                    "where oversees.supervisor_id = 1 \n" +
+                    //"where oversees.supervisor_id = ? \n" +
                     "\n");
+            pstmt.setInt(1,supervisorID);
             ResultSet results = pstmt.executeQuery();
             if (results.next()){
 
@@ -873,14 +897,18 @@ public class Solution {
         PreparedStatement pstmt = null;
         ArrayList<Integer> students = new ArrayList<Integer>();
         try {
-            pstmt = connection.prepareStatement("select student_id  \n" +
-                    "from student left join credit_points  on student.Faculty = credit_points.Faculty\n" +
-                    "where student_id = 3 and (1.0*credit_points/points)*100 > 50");
+            pstmt = connection.prepareStatement("SELECT student_id \n" +
+                    "from student_faculty_points\n" +
+                    "where student_id = ? and (1.0*credit_points/points)*100 >= 50");
+            pstmt.setInt(1,studentID);
             ResultSet results = pstmt.executeQuery();
             if (results.next()) {
+                results.close();
                 return true;
             }
+            results.close();
             return false;
+
 
         } catch (SQLException e) {
             return false;
@@ -940,7 +968,7 @@ public class Solution {
         try {
             pstmt = connection.prepareStatement("SELECT attendees.test_id , COUNT(test_id) num_of_students\n" +
                     "FROM attendees \n" +
-                    "WHERE student_id IN (SELECT student_id FROM student WHERE faculty = 'cs')\n" +
+                    "WHERE student_id IN (SELECT student_id FROM student WHERE faculty = ?)\n" +
                     "GROUP BY test_id\n" +
                     "ORDER BY COUNT(test_id) DESC\n" +
                     "LIMIT 1");
@@ -971,15 +999,125 @@ public class Solution {
     }
 
     public static ArrayList<Integer> getConflictingTests() {
-        return new ArrayList<Integer>();
+        /*
+        *********could have done also *************
+
+        SELECT DISTINCT test_id
+        FROM test T1
+        WHERE (day, time, semester) in (select day, time, semester from test T2 where
+			        			         T2.test_id != T1.test_id)
+         */
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> conflicting_tests = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT DISTINCT T1.test_id  " +
+                    " FROM test T1, test T2 " +
+                    " WHERE T1.test_id != T2.test_id " +
+                    " AND         T1.day = T2.day" +
+                    " AND      T1.time = T2.time " +
+                    " AND     T1.semester = T2.semester" +
+                    " ORDER BY T1.test_id" +
+                    " ASC");
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                conflicting_tests.add(results.getInt("test_id"));//todo: check the order of the array
+                results.close();
+
+            }
+            return conflicting_tests;
+
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 
     public static ArrayList<Integer> graduateStudents() {
-        return new ArrayList<Integer>();
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> graduating_students = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("SELECT STP.student_id \n" +
+                    "from student_faculty_points SFP inner join student_total_points STP \n" +
+                    "on SFP.student_id = STP.student_id\n" +
+                    "where STP.total_points >= SFP.points \n" +
+                    "LIMIT 5");
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                graduating_students.add(results.getInt("test_id"));
+                results.close();
+
+            }
+            return graduating_students;
+
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 
     public static ArrayList<Integer> getCloseStudents(Integer studentID) {
-        return new ArrayList<Integer>();
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Integer> closed = new ArrayList<Integer>();
+        try {
+            pstmt = connection.prepareStatement("select A1.student_id \n" +
+                    "from attendees A1 inner join (select  test_id, semester from attendees where student_id = ?) A2\n" +
+                    "on A1.test_id = A2.test_id and A1.semester = A2.semester\n" +
+                    "where  ? != A1.student_id\n" +
+                    "group by A1.student_id\n" +
+                    "having (1.0*count(A1.student_id))>=0.5*(select count(student_id) from attendees where student_id=?)\n" +
+                    "order by A1.student_id desc\n" +
+                    "limit 10");
+            pstmt.setInt(1,studentID);
+            pstmt.setInt(2,studentID);
+            pstmt.setInt(3,studentID);
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                closed.add(results.getInt("student_id"));
+                results.close();
+
+            }
+            return closed;
+
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }
 
