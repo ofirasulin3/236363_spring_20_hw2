@@ -47,7 +47,8 @@ public class Solution {
                     "    credit_points integer default (0) NOT NULL ,\n" +
                     "    PRIMARY KEY (student_id),\n" +
                     "    CHECK (student_id > 0),\n" +
-                    "    CHECK (credit_points>=0)\n" +
+                    "    CHECK (credit_points>=0),\n" +
+                    "    CHECK (faculty = 'EE' or faculty = 'CS' or faculty = 'MATH')\n" +
                     ")");
             pstmt.execute();
             pstmt = connection.prepareStatement("CREATE TABLE Supervisor\n" +
@@ -64,9 +65,9 @@ public class Solution {
                     "(\n" +
                     "    supervisor_id integer NOT NULL,\n" +
                     "    test_id integer NOT NULL ,\n" +
-                    "    semster integer NOT NULL ,\n" +
+                    "    semester integer NOT NULL ,\n" +
                     "    UNIQUE(supervisor_id, test_id, semester),\n" +
-                    "    FOREIGN KEY (supervisor_id) REFERENCES supervisor (supervisor_id) ON DELETE CASCADE ON UPDATE CASCADE" +
+                    "    FOREIGN KEY (supervisor_id) REFERENCES supervisor (supervisor_id) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "    FOREIGN KEY (test_id,semester) REFERENCES test (test_id, semester) ON DELETE CASCADE ON UPDATE CASCADE\n" +
                     ")");
             pstmt.execute();
@@ -74,9 +75,9 @@ public class Solution {
                     "(\n" +
                     "    student_id integer NOT NULL,\n" +
                     "    test_id integer NOT NULL ,\n" +
-                    "    semster integer NOT NULL ,\n" +
+                    "    semester integer NOT NULL ,\n" +
                     "    UNIQUE(student_id, test_id, semester),\n" +
-                    "    FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE ON UPDATE CASCADE" +
+                    "    FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE ON UPDATE CASCADE," +
                     "    FOREIGN KEY (test_id,semester) REFERENCES test (test_id, semester) ON DELETE CASCADE ON UPDATE CASCADE\n" +
                     ")");
             pstmt.execute();
@@ -121,15 +122,15 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Test");
+            pstmt = connection.prepareStatement("DELETE FROM Test");
             pstmt.execute();
-            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Student");
+            pstmt = connection.prepareStatement("DELETE FROM Student");
             pstmt.execute();
-            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Supervisor");
+            pstmt = connection.prepareStatement("DELETE FROM Supervisor");
             pstmt.execute();
-            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Attendees");
+            pstmt = connection.prepareStatement("DELETE FROM Attendees");
             pstmt.execute();
-            pstmt = connection.prepareStatement("DELETE TABLE IF EXISTS Oversees");
+            pstmt = connection.prepareStatement("DELETE FROM Oversees");
             pstmt.execute();
 
         } catch (SQLException e) {
@@ -157,16 +158,18 @@ public class Solution {
             pstmt.execute();
             pstmt = connection.prepareStatement("DROP VIEW IF EXISTS student_faculty_points");
             pstmt.execute();
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Attendees");
+            pstmt.execute();
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Oversees");
+            pstmt.execute();
+            pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Test");
             pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Student");
             pstmt.execute();
             pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Supervisor");
             pstmt.execute();
-            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Attendees");
-            pstmt.execute();
-            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS Oversees");
-            pstmt.execute();
+
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -238,17 +241,18 @@ public class Solution {
         int day = 0;
         int credit_points = 0;
         try {
-            pstmt = con.prepareStatement("SELECT * FROM Test WHERE test_id = ? and Semester = ?");
+            pstmt = con.prepareStatement("SELECT * FROM Test WHERE test_id = ? and semester = ?");
             pstmt.setInt(1, testID);
             pstmt.setInt(2, semester);
             rs = pstmt.executeQuery();
+            if(!rs.next()){
+                return Test.badTest();
+            }
         } catch (SQLException e) {
             return Test.badTest();
         }
 
-        if (rs == null) {   //||!rs.next()) {
-            return Test.badTest();
-        }
+
 
 
         try {
@@ -292,17 +296,16 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement(
-                    "DELETE FROM Test " +
-
-                            "where test_id = ? and semester = ?");
+            pstmt = connection.prepareStatement("DELETE FROM test\n" +
+                    "WHERE test_id = ? and semester = ?");
             pstmt.setInt(1,testID);
-            pstmt.setInt(1,semester);
+            pstmt.setInt(2,semester);
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0){
                 return NOT_EXISTS;
             }
         } catch (SQLException e) {
+
             return ERROR;
 
         }
@@ -365,16 +368,17 @@ public class Solution {
         String faculty = "";
         int creditPoints = 0;
         try {
-            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
+            pstmt = con.prepareStatement("SELECT * FROM Student WHERE student_id = ?");
             pstmt.setInt(1, studentID);
             rs = pstmt.executeQuery();
+            if (!rs.next()) {
+                return Student.badStudent();
+            }
         } catch (SQLException e) {
             return Student.badStudent();
         }
 
-        if (rs == null) {
-            return Student.badStudent();
-        }
+
         try {
             id = rs.getInt(1);
             name = rs.getString(2);
@@ -402,23 +406,32 @@ public class Solution {
         student.setFaculty(faculty);
         student.setCreditPoints(creditPoints);
         return student;
+        //return new Student();
     }
 
     public static ReturnValue deleteStudent(Integer studentID) {
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
+        ResultSet rs = null;
 
+
+
+        //Delete from Student:
+        //PreparedStatement pstmt = null;
         try {
-            pstmt = con.prepareStatement("DELETE FROM Student WHERE ID = ?");
+            pstmt = con.prepareStatement("DELETE FROM Student WHERE student_id = ?");
             pstmt.setInt(1, studentID);
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0){
                 return NOT_EXISTS;
             }
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             return ERROR;
         }
+
+        //TODO: what's the difference between excecute and executeQuery?
+
+        //TODO: is it possible to us the same pstmt again and again?
 
         finally {
             try {
@@ -488,16 +501,17 @@ public class Solution {
         int salary = 0;
         int creditPoints = 0;
         try {
-            pstmt = con.prepareStatement("SELECT * FROM Supervisor WHERE ID = ?");
+            pstmt = con.prepareStatement("SELECT * FROM Supervisor WHERE supervisor_id = ?");
             pstmt.setInt(1, supervisorID);
             rs = pstmt.executeQuery();
+            if(!rs.next()){
+                return Supervisor.badSupervisor();
+            }
         } catch (SQLException e) {
             return Supervisor.badSupervisor();
         }
 
-        if (rs == null) {
-            return Supervisor.badSupervisor();
-        }
+
         try {
             id = rs.getInt(1);
             name = rs.getString(2);
@@ -540,7 +554,7 @@ public class Solution {
                 return NOT_EXISTS;
             }
         } catch (SQLException e) {
-                return ERROR;
+            return ERROR;
 
         }
         finally {
@@ -563,31 +577,6 @@ public class Solution {
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-
-        //check if student exists:
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Student WHERE ID = ?");
-            pstmt.setInt(1, studentID);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
-        //check if test exists:
-        try {
-            pstmt = con.prepareStatement("SELECT * FROM Test WHERE ID = ?");
-            pstmt.setInt(1, testID);
-            rs = pstmt.executeQuery();
-        } catch (SQLException e) {
-            return ERROR;
-        }
-        if (rs == null) {
-            return NOT_EXISTS;
-        }
-
-
         try {
             pstmt = con.prepareStatement("INSERT INTO Attendees VALUES (?,?,?)");
             pstmt.setInt(1, studentID);
@@ -596,9 +585,14 @@ public class Solution {
             pstmt.execute();
         } catch (SQLException e) {
             int SQLStateNumValue = Integer.valueOf(e.getSQLState());
-            if (SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
+            if (SQLStateNumValue == PostgreSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue()) {
+                return NOT_EXISTS;
+            }
+            else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
                 return ALREADY_EXISTS;
-            } else {
+
+            }
+            else {
                 return ERROR;
             }
         } finally {
@@ -617,19 +611,22 @@ public class Solution {
     }
 
     public static ReturnValue studentWaiveTest(Integer studentID, Integer testID, Integer semester) {
+
         Connection con = DBConnector.getConnection();
         PreparedStatement pstmt = null;
+        ResultSet rs = null;
 
         try {
-            pstmt = con.prepareStatement("DELETE FROM Attendees WHERE studentID = ? and testID = ? and Semester = ?");
+            pstmt = con.prepareStatement("DELETE FROM Attendees WHERE student_id = ? and test_id = ? and semester = ?");
             pstmt.setInt(1, studentID);
-            pstmt.setInt(1, testID);
-            pstmt.setInt(2, semester);
+            pstmt.setInt(2, testID);
+            pstmt.setInt(3, semester);
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0){
                 return NOT_EXISTS;
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             return ERROR;
         }
 
@@ -653,15 +650,19 @@ public class Solution {
         PreparedStatement pstmt = null;
         try {
             pstmt = con.prepareStatement("INSERT INTO Oversees VALUES (?,?,?)");
-            pstmt.setInt(1,testID);
-            pstmt.setInt(2, semester);
-            pstmt.setInt(3,supervisorID);
+            pstmt.setInt(1,supervisorID);
+            pstmt.setInt(2,testID);
+            pstmt.setInt(3,semester);
             pstmt.execute();
         }catch(SQLException e){
             int SQLStateNumValue = Integer.valueOf(e.getSQLState());
             if (SQLStateNumValue == PostgreSQLErrorCodes.CHECK_VIOLATION.getValue() ||
                     SQLStateNumValue == PostgreSQLErrorCodes.NOT_NULL_VIOLATION.getValue()){
                 return BAD_PARAMS;
+
+            }
+            else if(SQLStateNumValue == PostgreSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue()){
+                return NOT_EXISTS;
 
             }
             else if(SQLStateNumValue == PostgreSQLErrorCodes.UNIQUE_VIOLATION.getValue()){
@@ -698,8 +699,8 @@ public class Solution {
 
                             "where supervisor_id = ? and test_id = ? and semester = ? ");
             pstmt.setInt(1,supervisorID);
-            pstmt.setInt(1,testID);
-            pstmt.setInt(1,semester);
+            pstmt.setInt(2,testID);
+            pstmt.setInt(3,semester);
 
 
             int affectedRows = pstmt.executeUpdate();
@@ -740,25 +741,23 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("SELECT AVG(tests_cost.average)\n" +
-                    "FROM (SELECT test_id , semester , AVG(salary) average\n" +
-                    "\t FROM oversees INNER JOIN supervisor on oversees.supervisor_id = supervisor.supervisor_id \n" +
-                    "\t GROUP BY test_id , semester) tests_cost\n" +
-                    "\t \n" +
-                    "\n");
+            pstmt = connection.prepareStatement("SELECT AVG(COALESCE(tests_cost.average,0)) all_tests_average\n" +
+                    " FROM (SELECT test_id , semester , AVG(salary) average\n" +
+                    " FROM oversees INNER JOIN supervisor on oversees.supervisor_id = supervisor.supervisor_id\n" +
+                    "GROUP BY test_id , semester) tests_cost right join test on\n" +
+                    " test.test_id = tests_cost.test_id and\n" +
+                    "test.semester = tests_cost.semester");
             ResultSet results = pstmt.executeQuery();
-            if (results.next()){
-                float rs = results.getFloat("avg");
-                results.close();
-                return  rs;
-            }
-            else{
-                results.close();
-                return  Float.valueOf(-1);
-            }
+            results.next();
+            float rs = results.getFloat("all_tests_average");
+            results.close();
+            return  rs;
+
+
 
 
         } catch (SQLException e) {
+            e.printStackTrace();
             return Float.valueOf(-1);
         }
 
@@ -773,7 +772,7 @@ public class Solution {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-            }
+        }
 
 
     }
@@ -782,20 +781,19 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("select sum(salary)\n" +
-                    "from oversees inner join (select * \n" +
-                    "from supervisor \n" +
-                    "where supervisor_id = ?) S \n" +
-                    "on S.supervisor_id = oversees.supervisor_id\n" +
-                    //"where oversees.supervisor_id = ? \n" +
-                    "\n");
+            pstmt = connection.prepareStatement("select supervisor.supervisor_id , count(oversees.supervisor_id)*supervisor.salary wage\n" +
+                    "from oversees right join supervisor on oversees.supervisor_id = supervisor.supervisor_id\n" +
+                    "where supervisor.supervisor_id=?\n" +
+                    "group by supervisor.supervisor_id,salary");
             pstmt.setInt(1,supervisorID);
             ResultSet results = pstmt.executeQuery();
             if (results.next()){
-
-                int rs = results.getInt("sum");
+                int rs = results.getInt("wage");
                 results.close();
                 return rs;
+            }
+            else {
+                return -1;
             }
 
 
@@ -815,7 +813,7 @@ public class Solution {
                 e.printStackTrace();
             }
         }
-        return -1;
+
     }
 
     public static ArrayList<Integer> supervisorOverseeStudent() {
@@ -830,7 +828,7 @@ public class Solution {
                     "\t   \toversees.semester = attendees.semester) oversees_student\n" +
                     "\tGROUP BY student_id , supervisor_id\n" +
                     "\tHAVING COUNT(oversees_student.supervisor_id)>=2) students_more_than_once\n" +
-                    "\n");
+                    "order by student_id desc \n");
             ResultSet results = pstmt.executeQuery();
             while (results.next()) {
                 students.add(results.getInt("student_id"));
@@ -863,6 +861,7 @@ public class Solution {
             pstmt = connection.prepareStatement("SELECT test_id \n" +
                     "  FROM test\n" +
                     " WHERE semester = ?\n" +
+                    "order by test_id desc\n"+
                     " LIMIT 5");
 
             pstmt.setInt(1,semester);
@@ -938,9 +937,9 @@ public class Solution {
             pstmt.setInt(1,studentID);
             ResultSet results = pstmt.executeQuery();
             if (results.next()) {
-               int points =  results.getInt("total_points");
-               results.close();
-               return points;
+                int points =  results.getInt("total_points");
+                results.close();
+                return points;
             }
             return 0;
 
@@ -970,14 +969,14 @@ public class Solution {
                     "FROM attendees \n" +
                     "WHERE student_id IN (SELECT student_id FROM student WHERE faculty = ?)\n" +
                     "GROUP BY test_id\n" +
-                    "ORDER BY COUNT(test_id) DESC\n" +
+                    "ORDER BY COUNT(test_id) DESC , attendees.test_id desc \n" +
                     "LIMIT 1");
             pstmt.setString(1,faculty);
             ResultSet results = pstmt.executeQuery();
             if (results.next()) {
-               int id = results.getInt("test_id");
-               results.close();
-               return id;
+                int id = results.getInt("test_id");
+                results.close();
+                return id;
             }
             return 0;
 
@@ -1022,12 +1021,14 @@ public class Solution {
             ResultSet results = pstmt.executeQuery();
             while (results.next()) {
                 conflicting_tests.add(results.getInt("test_id"));//todo: check the order of the array
-                results.close();
+
 
             }
+            results.close();
             return conflicting_tests;
 
         } catch (SQLException e) {
+
             return new ArrayList<Integer>();
         } finally {
             try {
@@ -1053,16 +1054,19 @@ public class Solution {
                     "from student_faculty_points SFP inner join student_total_points STP \n" +
                     "on SFP.student_id = STP.student_id\n" +
                     "where STP.total_points >= SFP.points \n" +
+                    "order by STP.student_id asc\n " +
                     "LIMIT 5");
             ResultSet results = pstmt.executeQuery();
             while (results.next()) {
-                graduating_students.add(results.getInt("test_id"));
-                results.close();
+                graduating_students.add(results.getInt("student_id"));
+
 
             }
+            results.close();
             return graduating_students;
 
         } catch (SQLException e) {
+
             return new ArrayList<Integer>();
         } finally {
             try {
@@ -1084,26 +1088,29 @@ public class Solution {
         PreparedStatement pstmt = null;
         ArrayList<Integer> closed = new ArrayList<Integer>();
         try {
-            pstmt = connection.prepareStatement("select A1.student_id \n" +
-                    "from attendees A1 inner join (select  test_id, semester from attendees where student_id = ?) A2\n" +
-                    "on A1.test_id = A2.test_id and A1.semester = A2.semester\n" +
-                    "where  ? != A1.student_id\n" +
-                    "group by A1.student_id\n" +
-                    "having (1.0*count(A1.student_id))>=0.5*(select count(student_id) from attendees where student_id=?)\n" +
-                    "order by A1.student_id desc\n" +
-                    "limit 10");
+            pstmt = connection.prepareStatement("select student.student_id ,coalesce (inter.intersecting_count,0)\n" +
+                    "from student left join (select A2.student_id,count(A2.student_id) intersecting_count\n" +
+                    "\t\t\t\t\t     from attendees A1 inner join attendees A2 on A1.test_id = A2.test_id \n" +
+                    "\t\t\t\t\t\t                                             and A1.semester = A2.semester\n" +
+                    "\t\t\t\t\t     where A1.student_id = ?\n" +
+                    "\t\t\t\t\t\t group by A2.student_id) inter on student.student_id = inter.student_id\n" +
+                    "where coalesce(inter.intersecting_count,0) >= 0.5*(select count(student_id) from attendees where student_id = ?) and student.student_id != ?\n "+
+                    "order by student_id desc  limit 10\n  " );
             pstmt.setInt(1,studentID);
             pstmt.setInt(2,studentID);
             pstmt.setInt(3,studentID);
+
             ResultSet results = pstmt.executeQuery();
             while (results.next()) {
                 closed.add(results.getInt("student_id"));
-                results.close();
+
 
             }
+            results.close();
             return closed;
 
         } catch (SQLException e) {
+            e.printStackTrace();
             return new ArrayList<Integer>();
         } finally {
             try {
@@ -1120,4 +1127,3 @@ public class Solution {
 
     }
 }
-
