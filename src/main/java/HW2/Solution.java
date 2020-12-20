@@ -92,8 +92,8 @@ public class Solution {
             pstmt.execute();
             //Creating a view that shows points achieved and points goal for every student
             pstmt = connection.prepareStatement("CREATE VIEW student_faculty_points AS \n" +
-                    "SELECT student_id, student.faculty, points,creditPoints\n" +
-                    "from student left join credit_points on student.faculty = creditPoints.faculty");
+                    "SELECT student_id, student.faculty, points,credit_points\n" +
+                    "from student left join CreditPoints on student.faculty = CreditPoints.faculty");
             pstmt.execute();
 
 
