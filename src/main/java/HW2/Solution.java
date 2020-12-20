@@ -92,8 +92,8 @@ public class Solution {
             pstmt.execute();
             //Creating a view that shows points achieved and points goal for every student
             pstmt = connection.prepareStatement("CREATE VIEW student_faculty_points AS \n" +
-                    "SELECT student_id, student.faculty, points,credit_points\n" +
-                    "from student left join credit_points on student.faculty = credit_points.faculty");
+                    "SELECT student_id, student.faculty, points,creditPoints\n" +
+                    "from student left join credit_points on student.faculty = creditPoints.faculty");
             pstmt.execute();
 
 
@@ -150,7 +150,6 @@ public class Solution {
     }
 
     public static void dropTables() {
-        InitialState.dropInitialState();
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -187,6 +186,7 @@ public class Solution {
             }
         }
         //drop your tables here
+        InitialState.dropInitialState();
     }
 
     public static ReturnValue addTest(Test test) {
