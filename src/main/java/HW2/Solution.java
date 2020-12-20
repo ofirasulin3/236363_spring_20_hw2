@@ -1010,7 +1010,7 @@ public class Solution {
         PreparedStatement pstmt = null;
         ArrayList<Integer> conflicting_tests = new ArrayList<Integer>();
         try {
-            pstmt = connection.prepareStatement("SELECT DISTINCT T1.test_id  " +
+            pstmt = connection.prepareStatement("SELECT T1.test_id  " +
                     " FROM test T1, test T2 " +
                     " WHERE T1.test_id != T2.test_id " +
                     " AND         T1.day = T2.day" +
